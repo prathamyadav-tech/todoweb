@@ -1,0 +1,127 @@
+:root{
+  /* Palette: Midnight background + Teal accent */
+  --accent: #0ea5a4; /* teal */
+  --bg: #0f1724; /* midnight */
+  --surface: #0b2233; /* card/surface */
+  --text: #e6f0f2; /* light text */
+  --muted: #94a3b8; /* muted */
+  --danger: #dc3545; /* bootstrap danger */
+}
+
+[data-bs-theme="dark"] {
+  --bs-body-color: var(--text);
+  --bs-body-bg: var(--bg);
+  --bs-navbar-color: var(--text);
+  --bs-primary-text-emphasis: var(--text);
+  --bs-primary-bg-subtle: var(--surface);
+  --accent-color: var(--accent);
+}
+
+body {
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* Elements */
+.element {
+  color: var(--bs-primary-text-emphasis);
+  background-color: var(--bs-primary-bg-subtle);
+}
+
+/* Navbar: use accent color with light text for contrast */
+.navbar {
+  background-color: var(--accent-color) !important;
+}
+.navbar, .navbar .navbar-brand, .navbar .nav-link {
+  color: #fff !important;
+}
+.navbar .nav-link:hover {
+  color: #fff !important;
+  opacity: 0.9;
+}
+
+/* Dropdowns */
+.dropdown-menu {
+  background-color: var(--bs-primary-bg-subtle);
+  border-color: rgba(255,255,255,0.06);
+}
+.dropdown-item {
+  color: var(--bs-body-color);
+}
+.dropdown-item:hover {
+  background-color: rgba(255,255,255,0.02);
+}
+
+/* Tables */
+.table {
+  color: var(--bs-body-color);
+}
+.table th, .table td {
+  color: var(--bs-body-color) !important;
+}
+.table thead th {
+  background-color: rgba(255,255,255,0.02);
+}
+
+/* Forms */
+.form-label,
+.form-text,
+.form-check-label {
+  color: var(--bs-body-color) !important;
+}
+.form-control {
+  color: var(--bs-body-color) !important;
+  background-color: rgba(255,255,255,0.02) !important;
+  border-color: rgba(255,255,255,0.06) !important;
+}
+.form-control::placeholder {
+  color: var(--muted) !important;
+  opacity: 0.9;
+}
+
+/* Buttons */
+.btn-primary, .btn.btn-primary {
+  background-color: var(--accent-color) !important;
+  border-color: var(--accent-color) !important;
+  color: #fff !important;
+}
+.btn-danger, .btn.btn-danger {
+  color: #fff !important;
+}
+
+/* Small utility tweaks */
+.container a {
+  color: var(--accent-color);
+}
+
+/* Ensure links in table actions are visible */
+.table a.btn {
+  color: #fff !important;
+}
+
+/* Form text and controls: use black text for labels, inputs, placeholders, and helper text */
+.form-label,
+.form-text,
+.form-check-label {
+  color: #ffffff !important;
+}
+
+.form-control {
+  color: #f3f2f2 !important;
+  background-color: transparent; /* keep current bg unless you want white */
+}
+
+.form-control::placeholder {
+  color: #000 !important;
+  opacity: 0.7;
+}
+
+.btn {
+  color: #000 !important;
+}
+
+/* Ensure danger buttons (red) have readable white text */
+.btn-danger, .btn.btn-danger {
+  color: #fff !important;
+}
