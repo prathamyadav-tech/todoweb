@@ -1,10 +1,26 @@
 from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import os
 
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todo.db'
+
+# Production config: read SECRET_KEY and DATABASE_URL from environment
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret')
+
+# Use DATABASE_URL if provided (e.g., Postgres on Vercel), otherwise use a local SQLite file in instance/
+basedir = os.path.abspath(os.path.dirname(__file__))
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Vercel and other providers often expose the DB URL as DATABASE_URL
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # Ensure instance folder exists and use sqlite there (local development)
+    instance_path = os.path.join(basedir, 'instance')
+    os.makedirs(instance_path, exist_ok=True)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(instance_path, 'todo.db')
+
 db = SQLAlchemy(app)
 
 class Todo(db.Model):
