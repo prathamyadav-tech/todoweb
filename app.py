@@ -1,39 +1,36 @@
 from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
-from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# Production config: read SECRET_KEY and Supabase credentials from environment
+# Production config: read SECRET_KEY and DATABASE_URL from environment
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret')
 
-# Initialize Supabase client
-supabase_url = os.environ.get('SUPABASE_URL')
-supabase_key = os.environ.get('SUPABASE_ANON_KEY')
-supabase: Client = create_client(supabase_url, supabase_key)
+# PostgreSQL Database Configuration
+database_url = os.environ.get('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    # Heroku/Vercel style database URL needs to be modified for SQLAlchemy
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
-# Helper function to convert Supabase data to Todo object
-class Todo:
-    def __init__(self, id, title, desc, date_created):
-        self.sno = id
-        self.title = title
-        self.desc = desc
-        self.date_created = datetime.fromisoformat(date_created.replace('Z', '+00:00'))
+# Use DATABASE_URL if provided, otherwise use a local PostgreSQL database
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'postgresql://postgres:your_password@localhost:5432/todo_db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# Todo model for PostgreSQL
+class Todo(db.Model):
+    __tablename__ = 'todos'
+    
+    sno = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    desc = db.Column(db.String(500), nullable=False)
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
         return f"{self.sno} - {self.title}"
-
-# Create the todos table in Supabase if it doesn't exist
-# Note: You'll need to create this table manually in your Supabase dashboard with the following SQL:
-"""
-create table todos (
-    id bigint primary key generated always as identity,
-    title varchar(200) not null,
-    desc varchar(500) not null,
-    date_created timestamp with time zone default timezone('utc', now())
-);
-"""
 
 
 
@@ -43,17 +40,13 @@ def hello_world():
         title = request.form.get('title')
         desc = request.form.get('desc')
         if title and desc:
-            data = supabase.table('todos').insert({
-                "title": title,
-                "desc": desc
-            }).execute()
+            todo = Todo(title=title, desc=desc)
+            db.session.add(todo)
+            db.session.commit()
         return redirect(url_for('hello_world'))
 
-    # Get all todos
-    data = supabase.table('todos').select("*").order('date_created', desc=True).execute()
-    todos = [Todo(item['id'], item['title'], item['desc'], item['date_created']) 
-             for item in data.data]
-    return render_template('index.html', alltodo=todos)
+    alltodo = Todo.query.order_by(Todo.date_created.desc()).all()
+    return render_template('index.html', alltodo=alltodo)
 
 @app.route('/products')
 def products():
@@ -61,28 +54,25 @@ def products():
 
 @app.route('/delete/<int:sno>')
 def delete(sno):
-    supabase.table('todos').delete().eq('id', sno).execute()
+    todo = Todo.query.get_or_404(sno)
+    db.session.delete(todo)
+    db.session.commit()
     return redirect(url_for('hello_world'))
 
 @app.route('/update/<int:sno>', methods=['GET', 'POST'])
 def update(sno):
+    todo = Todo.query.get_or_404(sno)
     if request.method == 'POST':
         title = request.form.get('title')
         desc = request.form.get('desc')
         if title and desc:
-            supabase.table('todos').update({
-                "title": title,
-                "desc": desc
-            }).eq('id', sno).execute()
+            todo.title = title
+            todo.desc = desc
+            db.session.commit()
             return redirect(url_for('hello_world'))
-    
-    # Get the todo for editing
-    data = supabase.table('todos').select("*").eq('id', sno).execute()
-    if not data.data:
-        return redirect(url_for('hello_world'))
-    todo = Todo(data.data[0]['id'], data.data[0]['title'], 
-                data.data[0]['desc'], data.data[0]['date_created'])
     return render_template('update.html', todo=todo)
 
 if __name__=="__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True, port=8000)
