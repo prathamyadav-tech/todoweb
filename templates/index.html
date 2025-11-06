@@ -49,9 +49,19 @@
     </div>
   </div>
 </nav>
-    <div class ="container my-3"><form method="post">
-  <div class="mb-3">
-    <label for="title" class="form-label">Your To-do task</label>
+    <div class="container my-3">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}" role="alert">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      <form method="post">
+        <div class="mb-3">
+          <label for="title" class="form-label">Your To-do task</label>
     <input type="text" name="title" class="form-control" id="title" aria-describedby="emailHelp">
     <div id="text" class="form-text">Write here your tasks for To-do list</div>
   </div>

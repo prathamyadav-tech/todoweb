@@ -1,29 +1,49 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
+from sqlalchemy.exc import SQLAlchemyError
 
 app = Flask(__name__)
 
-# Production config: read SECRET_KEY and DATABASE_URL from environment
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret')
+# Basic configuration
+app.config['SECRET_KEY'] = 'dev-secret'  # For local development only
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.debug = True
 
-# PostgreSQL Database Configuration
-database_url = os.environ.get('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    # Heroku/Vercel style database URL needs to be modified for SQLAlchemy
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+# SQLite Database Configuration
+db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'todo.db')
+os.makedirs(os.path.dirname(db_path), exist_ok=True)
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 
-# Use DATABASE_URL if provided, otherwise use a local PostgreSQL database
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'postgresql://postgres:your_password@localhost:5432/todo_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Initialize database
 db = SQLAlchemy(app)
 
-# Todo model for PostgreSQL
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('error.html', error="Page not found"), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return render_template('error.html', error="Internal server error"), 500
+
+# Ensure database connection
+def init_db():
+    try:
+        with app.app_context():
+            db.create_all()
+        print("Database initialized successfully!")
+    except SQLAlchemyError as e:
+        print(f"Error initializing database: {str(e)}")
+        return False
+    return True
+
+# Todo model
 class Todo(db.Model):
-    __tablename__ = 'todos'
-    
     sno = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     desc = db.Column(db.String(500), nullable=False)
@@ -34,7 +54,7 @@ class Todo(db.Model):
 
 
 
-@app.route('/',methods=['GET','POST'])
+@app.route('/', methods=['GET', 'POST'])
 def hello_world():
     if request.method == 'POST':
         title = request.form.get('title')
@@ -43,20 +63,20 @@ def hello_world():
             todo = Todo(title=title, desc=desc)
             db.session.add(todo)
             db.session.commit()
+            flash('Todo added successfully!', 'success')
+        else:
+            flash('Title and description are required!', 'error')
         return redirect(url_for('hello_world'))
 
-    alltodo = Todo.query.order_by(Todo.date_created.desc()).all()
-    return render_template('index.html', alltodo=alltodo)
-
-@app.route('/products')
-def products():
-    return 'this is product page'
+    todos = Todo.query.order_by(Todo.date_created.desc()).all()
+    return render_template('index.html', alltodo=todos)
 
 @app.route('/delete/<int:sno>')
 def delete(sno):
     todo = Todo.query.get_or_404(sno)
     db.session.delete(todo)
     db.session.commit()
+    flash('Todo deleted successfully!', 'success')
     return redirect(url_for('hello_world'))
 
 @app.route('/update/<int:sno>', methods=['GET', 'POST'])
@@ -69,10 +89,13 @@ def update(sno):
             todo.title = title
             todo.desc = desc
             db.session.commit()
+            flash('Todo updated successfully!', 'success')
             return redirect(url_for('hello_world'))
+        flash('Title and description are required!', 'error')
     return render_template('update.html', todo=todo)
 
-if __name__=="__main__":
+if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        print(f"Database initialized at: {db_path}")
     app.run(debug=True, port=8000)
